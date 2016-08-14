@@ -83,7 +83,7 @@ void serve_client(int client_socket)
             cout << "Sending message to user failed. Try again" << endl;
             exit(1);
         }
-        usleep(1000); // sleep for 1 sec (slow server)
+        usleep(1000*1000); // sleep for 1 sec (slow server)
     }
 
     infile.close();
