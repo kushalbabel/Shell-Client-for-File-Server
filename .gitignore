@@ -1,3 +1,5 @@
 a.out
 *~
-
+files/*
+server-slow
+get-one-file
