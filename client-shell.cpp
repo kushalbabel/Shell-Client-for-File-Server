@@ -102,6 +102,10 @@ int classifyCmd(vector<string> tokens){
 					//redirected download
 					return 5;
 				}
+				if(tokens[2] == "|"){
+					//redirected download
+					return 6;
+				}
 			}
 		}
 	}
@@ -251,6 +255,61 @@ void redirectedDwnld(vector<string> tokens){
 	}
 	return;
 }
+void pipeDwnld(vector<string> tokens){
+	if (server_ip == ""|| server_port == ""){
+		cout<<"First provide server details"<<endl;
+		return;
+	}
+	int pipefd[2];
+	int status = pipe(pipefd);
+	if (status<0) return;
+
+	pid_t pid1 = fork();
+	if(pid1 < 0){
+		cout<<"Error forking"<<endl;
+		return;
+	}
+	pid_t pid2 = fork();
+	if(pid2 < 0){
+		cout<<"Error forking"<<endl;
+		return;
+	}
+
+	if(pid1 == 0){
+		if (dup2(pipefd[1],1) < 0){
+			cout<<"cant dup"<<endl;
+			exit(0);
+		}
+		close(pipefd[1]);
+		download(tokens[1]);
+		exit(0);
+	}
+	else{
+		if(pid2 == 0){
+			if (dup2(pipefd[0],0) < 0){
+				cout<<"cant dup"<<endl;
+				exit(0);
+			}
+			close(pipefd[0]);
+			vector<string>::iterator first = tokens.begin() + 3;
+			vector<string>::iterator last = tokens.end();
+			vector<string> newTokens(first, last);
+			for (int i=0;i<newTokens.size();i++){
+				cout<<newTokens[i]<<endl;
+			}
+			// exit(0);
+			simpleCmd(newTokens);
+			exit(0);
+		}
+		else{
+			waitForDeath(pid1);
+			cout<<"reaped first"<<endl;
+			waitForDeath(pid2);
+			cout<<"reaped second"<<endl;
+		}
+	}
+	return;
+}
 // main function
 int main(int argc , char *argv[])
 {	
@@ -293,6 +352,9 @@ int main(int argc , char *argv[])
 				break;
 			case 5:
 				redirectedDwnld(tokens);
+				break;
+			case 6:
+				pipeDwnld(tokens);
 				break;
 			default:
 				commandError();
