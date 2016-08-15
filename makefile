@@ -8,7 +8,7 @@ client: get-one-file.cpp get-one-file-sig.cpp
 	g++ get-one-file-sig.cpp -o get-one-file-sig
 
 shell: client-shell.cpp
-	g++ -pthread client-shell client-shell.cpp
+	g++ -pthread client-shell.cpp -o client-shell
 
 clean:
 	rm -f server-slow

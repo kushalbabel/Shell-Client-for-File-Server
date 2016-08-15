@@ -5,3 +5,4 @@ server-slow
 get-one-file
 get-one-file-sig
 client-shell
+make-tokens.c
