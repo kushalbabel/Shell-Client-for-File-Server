@@ -14,8 +14,8 @@
 using namespace std;
 
 int bytesReceived;
-string server_ip = "127.0.0.1";
-string server_port  = "5000";
+string server_ip = "";
+string server_port  = "";
 // SIGINT handler funciton
 void sigint_handler(int signo)
 {
