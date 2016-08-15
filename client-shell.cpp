@@ -14,8 +14,8 @@
 using namespace std;
 
 int bytesReceived;
-string server_ip = "127.0.0.1";
-string server_port  = "5000";
+string server_ip = "";
+string server_port  = "";
 // SIGINT handler funciton
 void sigint_handler(int signo)
 {
@@ -109,6 +109,18 @@ int classifyCmd(vector<string> tokens){
 			}
 		}
 	}
+	if(tokens[0] == "getsq"){
+		if(tokens.size() <= 1){
+			return 0;
+		}
+		return 7;
+	}
+	if(tokens[0] == "getp1"){
+		if(tokens.size() <= 1){
+			return 0;
+		}
+		return 8;
+	}
 	return 0;
 }
 void cdCmd(vector<string> tokens){
@@ -179,7 +191,7 @@ void simpleCmd(vector<string> tokens){
 	}
 	return;
 }
-void download(string filename){
+void download(string filename, bool isDisplay){
 	string path = "./get-one-file-sig";
 	//create char* for arguement passing
 	char * cpath = new char [path.length()+1];
@@ -191,7 +203,12 @@ void download(string filename){
 	argArray[1] = strToChar(filename);
 	argArray[2] = strToChar(server_ip);
 	argArray[3] = strToChar(server_port);
-	argArray[4] = strToChar("display");
+	if(isDisplay){
+		argArray[4] = strToChar("display");	
+	}
+	else{
+		argArray[4] = strToChar("nodisplay");		
+	}
 	argArray[5] = NULL;
 	execvp(path.c_str(),argArray);
 	//one more exit for safety
@@ -210,7 +227,7 @@ void simpleDwnld(vector<string> tokens){
 	}
 	if(pid == 0){
 		//child process
-		download(tokens[1]);
+		download(tokens[1],true);
 		
 	}
 	else{
@@ -244,7 +261,7 @@ void redirectedDwnld(vector<string> tokens){
 				exit(0);
 			}
 			close(fd1);
-			download(tokens[1]);
+			download(tokens[1],true);
 			exit(0);
 		}
 		
@@ -276,7 +293,7 @@ void pipeDwnld(vector<string> tokens){
 		}
 		close(pipefd[1]);
 		close(pipefd[0]);
-		download(tokens[1]);
+		download(tokens[1],true);
 		exit(0);
 	}
 	else{
@@ -311,6 +328,62 @@ void pipeDwnld(vector<string> tokens){
 		}
 	}
 	return;
+}
+void sqDwnlod(vector<string> tokens){
+	if (server_ip == ""|| server_port == ""){
+		cout<<"First provide server details"<<endl;
+		return;
+	}
+	int numDwnld = tokens.size()-1;
+	for (int i=1;i<=numDwnld;i++){
+		pid_t pid = fork();
+		if(pid < 0){
+			cout<<"Error forking"<<endl;
+			return;
+		}
+		if(pid == 0){
+			//child process
+			download(tokens[i],true);
+			exit(0);
+		}
+		else{
+			//parent process
+			waitForDeath(pid);
+		}	
+	}
+	return;
+	
+}
+void prlDwnld(vector<string> tokens){
+	if (server_ip == ""|| server_port == ""){
+		cout<<"First provide server details"<<endl;
+		return;
+	}
+	int numDwnld = tokens.size()-1;
+	int success = 0;
+	pid_t pid[numDwnld];
+	for (int i=0; i< numDwnld;i++){
+		pid[i] = fork();
+		if(pid[i] < 0){
+			cout<<"Error forking"<<endl;
+			break;
+		}
+		success++;
+		if(pid[i] == 0){
+			//child process
+			download(tokens[i+1],true);
+			exit(0);
+		}
+		else{
+			//parent process
+		}	
+	}
+	int status;
+	for (int i=0;i<success;i++){
+		wait(&status);
+	}
+	return;
+	
 }
 // main function
 int main(int argc , char *argv[])
@@ -357,6 +430,12 @@ int main(int argc , char *argv[])
 				break;
 			case 6:
 				pipeDwnld(tokens);
+				break;
+			case 7:
+				sqDwnlod(tokens);
+				break;
+			case 8:
+				prlDwnld(tokens);
 				break;
 			default:
 				commandError();
