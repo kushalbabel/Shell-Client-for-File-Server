@@ -86,7 +86,7 @@ int classifyCmd(vector<string> tokens){
 		else return 2;
 	}
 	//3 if ls
-	if(tokens[0] == "ls" || tokens[0] == "cat"){
+	if(tokens[0] == "ls" || tokens[0] == "cat" || tokens[0] == "echo"){
 		return 3;
 	}
 	//4 if simple download
