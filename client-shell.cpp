@@ -14,8 +14,8 @@
 using namespace std;
 
 int bytesReceived;
-string server_ip = "";
-string server_port  = "";
+string server_ip = "127.0.0.1";
+string server_port  = "5000";
 // SIGINT handler funciton
 void sigint_handler(int signo)
 {
@@ -269,43 +269,45 @@ void pipeDwnld(vector<string> tokens){
 		cout<<"Error forking"<<endl;
 		return;
 	}
-	pid_t pid2 = fork();
-	if(pid2 < 0){
-		cout<<"Error forking"<<endl;
-		return;
-	}
-
 	if(pid1 == 0){
 		if (dup2(pipefd[1],1) < 0){
 			cout<<"cant dup"<<endl;
 			exit(0);
 		}
 		close(pipefd[1]);
+		close(pipefd[0]);
 		download(tokens[1]);
 		exit(0);
 	}
 	else{
+
+		pid_t pid2 = fork();
+		if(pid2 < 0){
+			cout<<"Error forking"<<endl;
+			close(pipefd[0]);
+			close(pipefd[1]);
+			waitForDeath(pid1);
+			return;
+		}
 		if(pid2 == 0){
 			if (dup2(pipefd[0],0) < 0){
 				cout<<"cant dup"<<endl;
 				exit(0);
 			}
 			close(pipefd[0]);
+			close(pipefd[1]);
 			vector<string>::iterator first = tokens.begin() + 3;
 			vector<string>::iterator last = tokens.end();
 			vector<string> newTokens(first, last);
-			for (int i=0;i<newTokens.size();i++){
-				cout<<newTokens[i]<<endl;
-			}
 			// exit(0);
 			simpleCmd(newTokens);
 			exit(0);
 		}
 		else{
+			close(pipefd[0]);
+			close(pipefd[1]);
 			waitForDeath(pid1);
-			cout<<"reaped first"<<endl;
 			waitForDeath(pid2);
-			cout<<"reaped second"<<endl;
 		}
 	}
 	return;
