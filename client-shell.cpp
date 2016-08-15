@@ -1,13 +1,15 @@
-	#include <iostream>
-	#include <cstring>
-	#include <sys/socket.h>
-	#include <arpa/inet.h>
-	#include <unistd.h>
-	#include <pthread.h>
-	#include <stdio.h>
-	#include <vector>
-	#include <stdlib.h>
-	#include <signal.h>
+#include <iostream>
+#include <cstring>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <vector>
+#include <stdlib.h>
+#include <signal.h>
+#include <sys/types.h> //for waitpid
+#include <sys/wait.h> //for waitpid
 using namespace std;
 
 int bytesReceived;
@@ -68,6 +70,21 @@ int classifyCmd(vector<string> tokens){
 		}
 		else return 2;
 	}
+	if(tokens[0] == "ls"){
+		if(tokens.size()!= 1){
+			return 0;
+		}
+		else return 3;
+	}
+	if(tokens[0] == "getf1"){
+		if(tokens.size()<=1) commandError();
+		else{
+			if(tokens.size()==2){
+				return 4;
+			}
+		}
+	}
+	return 0;
 }
 void cdCmd(vector<string> tokens){
 	//implement cd
@@ -88,9 +105,51 @@ void cdCmd(vector<string> tokens){
 	return;
 }
 void serverCmd(vector <string> tokens){
-		server_ip = tokens[1];
-		server_port = tokens[2];
+	server_ip = tokens[1];
+	server_port = tokens[2];
+	return;
+}
+void lsCmd(){
+	pid_t pid = fork();
+	pid_t terminated;
+	if(pid < 0){
+		cout<<"Error forking"<<endl;
 		return;
+	}
+	if(pid == 0){
+		//child process
+		string path = "/bin/ls";
+		//create char* for arguement passing
+		char * cpath = new char [path.length()+1];
+  		strcpy (cpath, path.c_str());
+  		//create an array of pointers for arguement passing
+		char* argArray[2];
+		//populate arguemtn array
+		argArray[0] = cpath;
+		argArray[1] = NULL;
+		//call ls
+		execvp(path.c_str(),argArray);
+		//one more exit for safety
+		exit(0);
+	}
+	else{
+		//parent process
+		//wait for ls to finish
+		int status;
+		//wait for the exact child process
+		terminated = waitpid(pid,&status,0);
+		if(terminated!=pid){
+			cout<<"Oops, some other process terminated!"<<endl;
+		}
+		else {
+			return;
+		}
+	}
+}
+void simpleDwnld(vector<string> tokens){
+	// pid_t pid = fork();
+	// if (pid == )
+	return;
 }
 // main function
 int main(int argc , char *argv[])
@@ -111,17 +170,27 @@ int main(int argc , char *argv[])
 		int type = classifyCmd(tokens);
 		switch(type){
 			case -1:
+				//no command
 				continue;
-			case 0 :
+			case 0:
+				//erroneous command
 				commandError();
 				continue;
 			case 1:
+				//cd
 				cdCmd(tokens);
 				break;
 			case 2:
+				//server
 				serverCmd(tokens);
 				break;
-			default :
+			case 3:
+				//ls
+				lsCmd();
+			case 4:
+				simpleDwnld(tokens);
+				break;
+			default:
 				commandError();
 		}
 	}
