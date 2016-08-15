@@ -23,22 +23,27 @@ void sigint_handler(int signo)
 	return;
 }
 vector<string> tokenize(string command){
+	//append space to get the last token
 	command+=" ";
+	//initialize vector which holds final tokens
 	vector<string> tokens;
 	char readChar;
 	int i, tokenIndex = 0;
 	string currStr = "";
-
+	//loop until all chars are read
 	for(i =0; i < command.size(); i++){
 		readChar = command[i];
+		//space or newline
 		if (readChar == ' ' || readChar == '\n' || readChar == '\t'){
 			if (tokenIndex != 0){
+				//one token finished
 				tokens.push_back(currStr);
 				tokenIndex = 0;
 				currStr = "";
 			}
 		} 
 		else {
+			//continue reading token
 			currStr+=readChar;
 			tokenIndex++;
 		}
@@ -57,25 +62,30 @@ void commandError(){
 	return;
 }
 int classifyCmd(vector<string> tokens){
+	//-1 if emty commmand, 0 if invalid command
 	if (tokens.size()==0) return -1;
+	//1 if cd
 	if(tokens[0] == "cd"){
 		if(tokens.size() != 2){
 			return 0;
 		}
 		else return 1;
 	}
+	//2 if server
 	if(tokens[0] == "server"){
 		if(tokens.size()!= 3){
 			return 0;
 		}
 		else return 2;
 	}
+	//3 if ls
 	if(tokens[0] == "ls"){
 		if(tokens.size()!= 1){
 			return 0;
 		}
 		else return 3;
 	}
+	//4 if simple download
 	if(tokens[0] == "getf1"){
 		if(tokens.size()<=1) commandError();
 		else{
