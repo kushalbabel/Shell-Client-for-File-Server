@@ -8,24 +8,25 @@
 #include <vector>
 #include <stdlib.h>
 #include <signal.h>
+#include <fcntl.h>    /* For O_WRONLY */
 #include <sys/types.h> //for waitpid
 #include <sys/wait.h> //for waitpid
 using namespace std;
 
 int bytesReceived;
-string server_ip = "";
-string server_port  = "";
-	// SIGINT handler funciton
+string server_ip = "127.0.0.1";
+string server_port  = "5000";
+// SIGINT handler funciton
 void sigint_handler(int signo)
 {
 	cout << "\n\n";
 	cout << "Received SIGINT; downloaded " << bytesReceived  << " bytes so far." << endl;
 	return;
 }
-char* strToChar(string str){
-	char *cstr = new char[str.length() + 1];
-	strcpy(cstr, str.c_str());
-	return cstr;
+char* strToChar(string path){
+	char * cpath = new char [path.length()+1];
+  	strcpy (cpath, path.c_str());
+	return cpath;
 }
 vector<string> tokenize(string command){
 	//append space to get the last token
@@ -66,6 +67,7 @@ void commandError(){
 	cout<<"Wrong command format"<<endl;
 	return;
 }
+//assigns integer value to each commmand and also checks for validity of command
 int classifyCmd(vector<string> tokens){
 	//-1 if emty commmand, 0 if invalid command
 	if (tokens.size()==0) return -1;
@@ -84,18 +86,22 @@ int classifyCmd(vector<string> tokens){
 		else return 2;
 	}
 	//3 if ls
-	if(tokens[0] == "ls"){
-		if(tokens.size()!= 1){
-			return 0;
-		}
-		else return 3;
+	if(tokens[0] == "ls" || tokens[0] == "cat"){
+		return 3;
 	}
 	//4 if simple download
-	if(tokens[0] == "getf1"){
+	if(tokens[0] == "getfl"){
 		if(tokens.size()<=1) commandError();
 		else{
 			if(tokens.size()==2){
+				//simple download
 				return 4;
+			}
+			else{
+				if(tokens.size()==4 && tokens[2] == ">"){
+					//redirected download
+					return 5;
+				}
 			}
 		}
 	}
@@ -124,42 +130,69 @@ void serverCmd(vector <string> tokens){
 	server_port = tokens[2];
 	return;
 }
-void lsCmd(){
+void waitForDeath(pid_t pid){
+	//wait for pid to finish
+	int status;
+	//wait for the exact child process
+	pid_t terminated = waitpid(pid,&status,0);
+	if(terminated!=pid){
+		cout<<"Oops, some other process terminated!"<<endl;
+	}
+	else {
+		return;
+	}
+	return;
+}
+void simpleCmd(vector<string> tokens){
 	pid_t pid = fork();
-	pid_t terminated;
 	if(pid < 0){
 		cout<<"Error forking"<<endl;
 		return;
 	}
 	if(pid == 0){
 		//child process
-		string path = "/bin/ls";
+		string path = "/bin/";
+		path = path+tokens[0];
 		//create char* for arguement passing
 		char * cpath = new char [path.length()+1];
   		strcpy (cpath, path.c_str());
   		//create an array of pointers for arguement passing
-		char* argArray[2];
+		char* argArray[tokens.size()+1];
 		//populate arguemtn array
 		argArray[0] = cpath;
-		argArray[1] = NULL;
-		//call ls
+		argArray[tokens.size()] = NULL;
+		for (int i=1;i<tokens.size();i++){
+			argArray[i] = strToChar(tokens[i]);
+		}
+		//call the executable
 		execvp(path.c_str(),argArray);
 		//one more exit for safety
 		exit(0);
 	}
 	else{
 		//parent process
-		//wait for ls to finish
-		int status;
-		//wait for the exact child process
-		terminated = waitpid(pid,&status,0);
-		if(terminated!=pid){
-			cout<<"Oops, some other process terminated!"<<endl;
-		}
-		else {
-			return;
-		}
+		waitForDeath(pid);
 	}
+	return;
+}
+void download(string filename){
+	string path = "./get-one-file-sig";
+	//create char* for arguement passing
+	char * cpath = new char [path.length()+1];
+	strcpy (cpath, path.c_str());
+	//create an array of pointers for arguement passing
+	char* argArray[6];
+	//populate arguemtn array
+	argArray[0] = cpath;
+	argArray[1] = strToChar(filename);
+	argArray[2] = strToChar(server_ip);
+	argArray[3] = strToChar(server_port);
+	argArray[4] = strToChar("display");
+	argArray[5] = NULL;
+	execvp(path.c_str(),argArray);
+	//one more exit for safety
+	exit(0);
+	return;
 }
 void simpleDwnld(vector<string> tokens){
 	if (server_ip == ""|| server_port == ""){
@@ -167,45 +200,55 @@ void simpleDwnld(vector<string> tokens){
 		return;
 	}
 	pid_t pid = fork();
-	pid_t terminated;
 	if(pid < 0){
 		cout<<"Error forking"<<endl;
 		return;
 	}
 	if(pid == 0){
 		//child process
-		string path = "./get-one-file-sig";
-		//create char* for arguement passing
-		char * cpath = new char [path.length()+1];
-  		strcpy (cpath, path.c_str());
-  		//create an array of pointers for arguement passing
-		char* argArray[6];
-		//populate arguemtn array
-		argArray[0] = cpath;
-		argArray[1] = strToChar(tokens[1]);
-		argArray[2] = strToChar(server_ip);
-		argArray[3] = strToChar(server_port);
-		argArray[4] = strToChar("display");
-		argArray[5] = NULL;
-		//call ls
-		execvp(path.c_str(),argArray);
-		//one more exit for safety
-		exit(0);
+		download(tokens[1]);
+		
 	}
 	else{
 		//parent process
-		//wait for download to finish
-		int status;
-		//wait for the exact child process
-		terminated = waitpid(pid,&status,0);
-		if(terminated!=pid){
-			cout<<"Oops, some other process terminated!"<<endl;
-		}
-		else {
-			return;
-		}
+		waitForDeath(pid);
 	}
+	return;
+}
+void redirectedDwnld(vector<string> tokens){
+	if (server_ip == ""|| server_port == ""){
+		cout<<"First provide server details"<<endl;
+		return;
+	}
+	string output = tokens[3];
+	pid_t pid = fork();
+	if(pid < 0){
+		cout<<"Error forking"<<endl;
+		return;
+	}
+	if(pid == 0){
+		//child process
+		int fd1 ;
+		if ((fd1 = open(output.c_str(), O_WRONLY | O_APPEND | O_CREAT | O_TRUNC, 0644)) < 0){
+			cout<<"could not open file "<<output<<endl;
+			exit(0);
+		}
+		else{
 
+			if (dup2(fd1,1) < 0){
+				cout<<"cant dup"<<endl;
+				exit(0);
+			}
+			close(fd1);
+			download(tokens[1]);
+			exit(0);
+		}
+		
+	}
+	else{
+		//parent process
+		waitForDeath(pid);
+	}
 	return;
 }
 // main function
@@ -243,10 +286,13 @@ int main(int argc , char *argv[])
 				break;
 			case 3:
 				//ls
-				lsCmd();
+				simpleCmd(tokens);
 				break;
 			case 4:
 				simpleDwnld(tokens);
+				break;
+			case 5:
+				redirectedDwnld(tokens);
 				break;
 			default:
 				commandError();
