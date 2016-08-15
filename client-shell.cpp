@@ -22,6 +22,11 @@ void sigint_handler(int signo)
 	cout << "Received SIGINT; downloaded " << bytesReceived  << " bytes so far." << endl;
 	return;
 }
+char* strToChar(string str){
+	char *cstr = new char[str.length() + 1];
+	strcpy(cstr, str.c_str());
+	return cstr;
+}
 vector<string> tokenize(string command){
 	//append space to get the last token
 	command+=" ";
@@ -157,8 +162,50 @@ void lsCmd(){
 	}
 }
 void simpleDwnld(vector<string> tokens){
-	// pid_t pid = fork();
-	// if (pid == )
+	if (server_ip == ""|| server_port == ""){
+		cout<<"First provide server details"<<endl;
+		return;
+	}
+	pid_t pid = fork();
+	pid_t terminated;
+	if(pid < 0){
+		cout<<"Error forking"<<endl;
+		return;
+	}
+	if(pid == 0){
+		//child process
+		string path = "./get-one-file-sig";
+		//create char* for arguement passing
+		char * cpath = new char [path.length()+1];
+  		strcpy (cpath, path.c_str());
+  		//create an array of pointers for arguement passing
+		char* argArray[6];
+		//populate arguemtn array
+		argArray[0] = cpath;
+		argArray[1] = strToChar(tokens[1]);
+		argArray[2] = strToChar(server_ip);
+		argArray[3] = strToChar(server_port);
+		argArray[4] = strToChar("display");
+		argArray[5] = NULL;
+		//call ls
+		execvp(path.c_str(),argArray);
+		//one more exit for safety
+		exit(0);
+	}
+	else{
+		//parent process
+		//wait for download to finish
+		int status;
+		//wait for the exact child process
+		terminated = waitpid(pid,&status,0);
+		if(terminated!=pid){
+			cout<<"Oops, some other process terminated!"<<endl;
+		}
+		else {
+			return;
+		}
+	}
+
 	return;
 }
 // main function
@@ -197,6 +244,7 @@ int main(int argc , char *argv[])
 			case 3:
 				//ls
 				lsCmd();
+				break;
 			case 4:
 				simpleDwnld(tokens);
 				break;
