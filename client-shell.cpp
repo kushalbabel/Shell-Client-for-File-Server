@@ -11,12 +11,13 @@
 #include <fcntl.h>    /* For O_WRONLY */
 #include <sys/types.h> //for waitpid
 #include <sys/wait.h> //for waitpid
+#include <algorithm>
 using namespace std;
 
 int bytesReceived;
 string server_ip = "";
 string server_port  = "";
-vector<pid_t> bgIds;
+vector<pid_t> bgIds;	//stores the process IDs of background downloads
 bool sigintActive = false;
 // SIGINT handler funciton
 void sigint_handler(int signo)
@@ -72,6 +73,16 @@ void commandError(){
 int classifyCmd(vector<string> tokens){
 	//-1 if emty commmand, 0 if invalid command
 	if (tokens.size()==0) return -1;
+
+	// format checks
+	vector<string>::iterator pipe = find(tokens.begin(), tokens.end(), "|");
+	if(pipe != tokens.end() and tokens[0] != "getfl")
+		return 0;
+
+	pipe = find(tokens.begin(), tokens.end(), ">");
+	if(pipe != tokens.end() and tokens[0] != "getfl")
+		return 0;
+
 	//1 if cd
 	if(tokens[0] == "cd"){
 		if(tokens.size() != 2){
@@ -254,7 +265,7 @@ void redirectedDwnld(vector<string> tokens){
 		cout<<"First provide server details"<<endl;
 		return;
 	}
-	string output = tokens[3];
+	string output = tokens[3];	//output file
 	pid_t pid = fork();
 	if(pid < 0){
 		cout<<"Error forking"<<endl;
@@ -268,12 +279,13 @@ void redirectedDwnld(vector<string> tokens){
 			exit(0);
 		}
 		else{
-
+			//duplicate the file descriptor into stdout
 			if (dup2(fd1,1) < 0){
 				cout<<"cant dup"<<endl;
 				exit(0);
 			}
 			close(fd1);
+			//now begin download
 			download(tokens[1],true);
 			exit(0);
 		}
@@ -290,7 +302,7 @@ void pipeDwnld(vector<string> tokens){
 		cout<<"First provide server details"<<endl;
 		return;
 	}
-	int pipefd[2];
+	int pipefd[2];	//for getting pipe filedescriptors
 	int status = pipe(pipefd);
 	if (status<0) return;
 
@@ -300,6 +312,8 @@ void pipeDwnld(vector<string> tokens){
 		return;
 	}
 	if(pid1 == 0){
+		//filrst child 
+		//copy outpiut of pipe into stdout
 		if (dup2(pipefd[1],1) < 0){
 			cout<<"cant dup"<<endl;
 			exit(0);
@@ -316,6 +330,7 @@ void pipeDwnld(vector<string> tokens){
 			cout<<"Error forking"<<endl;
 			close(pipefd[0]);
 			close(pipefd[1]);
+			//if unsuccessful, reap the first child
 			waitForDeath(pid1);
 			return;
 		}
@@ -326,16 +341,19 @@ void pipeDwnld(vector<string> tokens){
 			}
 			close(pipefd[0]);
 			close(pipefd[1]);
+			//form new tokens for the next command
 			vector<string>::iterator first = tokens.begin() + 3;
 			vector<string>::iterator last = tokens.end();
 			vector<string> newTokens(first, last);
-			// exit(0);
+			// call simple linux command handler
 			simpleCmd(newTokens);
 			exit(0);
 		}
 		else{
+			//parent process
 			close(pipefd[0]);
 			close(pipefd[1]);
+			//reap both the children
 			waitForDeath(pid1);
 			waitForDeath(pid2);
 		}
@@ -349,6 +367,7 @@ void sqDwnlod(vector<string> tokens){
 	}
 	int numDwnld = tokens.size()-1;
 	for (int i=1;i<=numDwnld;i++){
+		//check if sigint received
 		if (sigintActive) break;
 		pid_t pid = fork();
 		if(pid < 0){
@@ -357,7 +376,7 @@ void sqDwnlod(vector<string> tokens){
 		}
 		if(pid == 0){
 			//child process
-			download(tokens[i],true);
+			download(tokens[i],false);
 			exit(0);
 		}
 		else{
@@ -374,18 +393,18 @@ void prlDwnld(vector<string> tokens){
 		return;
 	}
 	int numDwnld = tokens.size()-1;
-	int success = 0;
-	pid_t pid[numDwnld];
+	int success = 0;	//successful forks
+	pid_t pid[numDwnld]; //array for storing pids of children
 	for (int i=0; i< numDwnld;i++){
 		pid[i] = fork();
 		if(pid[i] < 0){
 			cout<<"Error forking"<<endl;
-			break;
+			break; //break and reap 
 		}
-		success++;
+		success++;	//successful fork++
 		if(pid[i] == 0){
 			//child process
-			download(tokens[i+1],true);
+			download(tokens[i+1],false);
 			exit(0);
 		}
 		else{
@@ -394,6 +413,7 @@ void prlDwnld(vector<string> tokens){
 	}
 	int status;
 	for (int i=0;i<success;i++){
+		//wait only for successful forks
 		wait(&status);
 	}
 	return;
@@ -412,6 +432,7 @@ void bgDwnld(vector<string> tokens){
 	}
 	if(pid == 0){
 		//child process
+		//move the child to a new process group
 		int status = setpgrp();
 		if(status!=0) 
 			cout<<"Error moving to another group!"<<endl;
@@ -423,6 +444,7 @@ void bgDwnld(vector<string> tokens){
 	}
 	else{
 		//parent process
+		//dont wait to reap, simply store the pid of chikle
 		bgIds.push_back(pid);
 	}
 	return;
@@ -434,6 +456,7 @@ void bgDwnld(vector<string> tokens){
 void *reaper(void* args)
 {
    while(1){
+   		//loop forever
         pid_t pid = waitpid(-1, 0, WNOHANG);
         if ( pid > 0)
         	cout << "\nBackground Download having process ID: " << pid << " finished    Hello> ";
@@ -446,6 +469,7 @@ void exitFunc(){
 	// kill all the background processes
 	for(int i = 0; i < bgIds.size(); i++)
 	{	
+		//kill background process
 		int sucess = kill(bgIds[i], SIGINT);
 		if(sucess == 0)
 		{
