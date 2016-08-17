@@ -14,8 +14,9 @@
 using namespace std;
 
 int bytesReceived;
-string server_ip = "";
-string server_port  = "";
+string server_ip = "127.0.0.1";
+string server_port  = "5000";
+vector<pid_t> bgIds;
 // SIGINT handler funciton
 void sigint_handler(int signo)
 {
@@ -115,11 +116,17 @@ int classifyCmd(vector<string> tokens){
 		}
 		return 7;
 	}
-	if(tokens[0] == "getp1"){
+	if(tokens[0] == "getpl"){
 		if(tokens.size() <= 1){
 			return 0;
 		}
 		return 8;
+	}
+	if(tokens[0] == "getbg"){
+		if(tokens.size() != 2){
+			return 0;
+		}
+		return 9;
 	}
 	return 0;
 }
@@ -385,6 +392,35 @@ void prlDwnld(vector<string> tokens){
 	return;
 	
 }
+void bgDwnld(vector<string> tokens){
+	if (server_ip == ""|| server_port == ""){
+		cout<<"First provide server details"<<endl;
+		return;
+	}
+	pid_t pid;
+	pid = fork();
+	if(pid < 0){
+		cout<<"Error forking"<<endl;
+		return;
+	}
+	if(pid == 0){
+		//child process
+		int status = setpgrp();
+		if(status!=0) 
+			cout<<"Error moving to another group!"<<endl;
+		else 
+		{
+			bgIds.push_back(getpid());
+			download(tokens[1],true);
+		}
+		exit(0);
+	}
+	else{
+		//parent process
+	}
+	return;
+	
+}
 // main function
 int main(int argc , char *argv[])
 {	
@@ -436,6 +472,12 @@ int main(int argc , char *argv[])
 				break;
 			case 8:
 				prlDwnld(tokens);
+				break;
+			case 9:
+				bgDwnld(tokens);
+				break;
+			case 10:
+				exitFunc();
 				break;
 			default:
 				commandError();
