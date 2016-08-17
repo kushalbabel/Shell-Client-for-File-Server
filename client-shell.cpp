@@ -14,12 +14,14 @@
 using namespace std;
 
 int bytesReceived;
-string server_ip = "127.0.0.1";
-string server_port  = "5000";
+string server_ip = "";
+string server_port  = "";
 vector<pid_t> bgIds;
+bool sigintActive = false;
 // SIGINT handler funciton
 void sigint_handler(int signo)
 {
+	sigintActive = true;
 	return;
 }
 char* strToChar(string path){
@@ -347,6 +349,7 @@ void sqDwnlod(vector<string> tokens){
 	}
 	int numDwnld = tokens.size()-1;
 	for (int i=1;i<=numDwnld;i++){
+		if (sigintActive) break;
 		pid_t pid = fork();
 		if(pid < 0){
 			cout<<"Error forking"<<endl;
@@ -470,6 +473,7 @@ int main(int argc , char *argv[])
 		cout<<"Hello> ";
 		//get command along with spaces
 		getline(cin,command);
+		sigintActive = false;
 		//tokenize
 		tokens = tokenize(command);
 		// printTokens(tokens);
