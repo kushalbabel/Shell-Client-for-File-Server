@@ -97,10 +97,6 @@ int classifyCmd(vector<string> tokens){
 		}
 		else return 2;
 	}
-	//3 if ls
-	if(tokens[0] == "ls" || tokens[0] == "cat" || tokens[0] == "echo"){
-		return 3;
-	}
 	//4 if simple download
 	if(tokens[0] == "getfl"){
 		if(tokens.size()<=1) commandError();
@@ -145,7 +141,7 @@ int classifyCmd(vector<string> tokens){
 		}
 		return 10;
 	}
-	return 0;
+	return 3;
 }
 void cdCmd(vector<string> tokens){
 	//implement cd
@@ -191,7 +187,7 @@ void simpleCmd(vector<string> tokens){
 	}
 	if(pid == 0){
 		//child process
-		string path = "/bin/";
+		string path = "";
 		path = path+tokens[0];
 		//create char* for arguement passing
 		char * cpath = new char [path.length()+1];
@@ -205,7 +201,11 @@ void simpleCmd(vector<string> tokens){
 			argArray[i] = strToChar(tokens[i]);
 		}
 		//call the executable
-		execvp(path.c_str(),argArray);
+		int ret = execvp(path.c_str(),argArray);
+		if(ret == -1)
+		{
+			commandError();
+		}
 		//one more exit for safety
 		exit(0);
 	}
