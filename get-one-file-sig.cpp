@@ -16,7 +16,7 @@ int bytesReceived;
 void sigint_handler(int signo)
 {
 	cout << "\n\n";
-	cout << "Received SIGINT; downloaded " << bytesReceived  << " bytes so far." << endl;
+	cerr << "Received SIGINT; downloaded " << bytesReceived  << " bytes so far." << endl;
 	exit(0);
 }
 
