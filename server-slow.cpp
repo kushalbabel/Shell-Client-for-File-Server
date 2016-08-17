@@ -73,6 +73,10 @@ void serve_client(int client_socket)
     string file_name = string(client_buffer).substr(4);
     ifstream infile(file_name.c_str());
 
+    // don't do anything if file doesn't exists
+    if(!infile.is_open())
+        return;
+
     while(!infile.eof())
     {
         // read from file
