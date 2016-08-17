@@ -421,9 +421,42 @@ void bgDwnld(vector<string> tokens){
 	return;
 	
 }
+
+
+// This will be used in reaper thread. Its job is to reap the zombie childs(background processes) periodically
+void *reaper(void* args)
+{
+   while(1){
+        pid_t pid = waitpid(-1, 0, WNOHANG);
+        cout << "Reaped process ID: " << pid << endl;
+        usleep(1000 * 1000); // wait of 1 sec
+   }
+}
+
+// This function does all the exit works
+void exitFunc(){
+	// kill all the background processes
+	for(int i = 0; i < bgIds.size(); i++)
+	{
+		int sucess = kill(bgIds[i], SIGKILL);
+		if(sucess == 0)
+		{
+			cout << "Killed the background process ID: " << bgIds[i] << endl;
+		}
+	}
+
+	cout << "Exiting.." << endl;
+	// exit this porcess as well
+	exit(0);
+}
+
 // main function
 int main(int argc , char *argv[])
 {	
+	// thread to reap the background processes periodically
+	pthread_t reaper_thread;
+	pthread_create(&reaper_thread, NULL, reaper, NULL);
+
 	string command;
 	vector<string> tokens;
 	// register the sigint signal handler
