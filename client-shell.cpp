@@ -20,8 +20,6 @@ vector<pid_t> bgIds;
 // SIGINT handler funciton
 void sigint_handler(int signo)
 {
-	cout << "\n\n";
-	cout << "Received SIGINT; downloaded " << bytesReceived  << " bytes so far." << endl;
 	return;
 }
 char* strToChar(string path){
@@ -127,6 +125,12 @@ int classifyCmd(vector<string> tokens){
 			return 0;
 		}
 		return 9;
+	}
+	if(tokens[0] == "exit"){
+		if(tokens.size() != 1){
+			return 0;
+		}
+		return 10;
 	}
 	return 0;
 }
@@ -410,13 +414,13 @@ void bgDwnld(vector<string> tokens){
 			cout<<"Error moving to another group!"<<endl;
 		else 
 		{
-			bgIds.push_back(getpid());
-			download(tokens[1],true);
+			download(tokens[1],false);
 		}
 		exit(0);
 	}
 	else{
 		//parent process
+		bgIds.push_back(pid);
 	}
 	return;
 	
@@ -428,8 +432,9 @@ void *reaper(void* args)
 {
    while(1){
         pid_t pid = waitpid(-1, 0, WNOHANG);
-        cout << "Reaped process ID: " << pid << endl;
-        usleep(1000 * 1000); // wait of 1 sec
+        if ( pid > 0)
+        	cout << "\nBackground Download having process ID: " << pid << " finished    Hello> ";
+        usleep(1000 * 1000); // wait of 1 sec 
    }
 }
 
@@ -437,15 +442,13 @@ void *reaper(void* args)
 void exitFunc(){
 	// kill all the background processes
 	for(int i = 0; i < bgIds.size(); i++)
-	{
-		int sucess = kill(bgIds[i], SIGKILL);
+	{	
+		int sucess = kill(bgIds[i], SIGINT);
 		if(sucess == 0)
 		{
-			cout << "Killed the background process ID: " << bgIds[i] << endl;
+			cout << "\nKilled the background process ID: " << bgIds[i];
 		}
 	}
-
-	cout << "Exiting.." << endl;
 	// exit this porcess as well
 	exit(0);
 }
@@ -460,8 +463,8 @@ int main(int argc , char *argv[])
 	string command;
 	vector<string> tokens;
 	// register the sigint signal handler
-	// if(signal(SIGINT, sigint_handler) == SIG_ERR)
-	// 	cout << "Can't catch SIGINT" << endl;
+	if(signal(SIGINT, sigint_handler) == SIG_ERR)
+		cout << "Can't catch SIGINT" << endl;
 	while(true){
 		//prompt
 		cout<<"Hello> ";
