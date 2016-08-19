@@ -11,12 +11,13 @@
 using namespace std;
 
 int bytesReceived;
+string file_name;
 
 // SIGINT handler funciton
 void sigint_handler(int signo)
 {
 	cout << "\n\n";
-	cerr << "Received SIGINT; downloaded " << bytesReceived  << " bytes so far." << endl;
+	cerr << "Received SIGINT; downloaded " << bytesReceived  << " bytes so far of the file " << file_name << endl;
 	exit(0);
 }
 
@@ -25,18 +26,18 @@ int main(int argc , char *argv[])
 {
 	// register the sigint signal handler
 	if(signal(SIGINT, sigint_handler) == SIG_ERR)
-		cout << "Can't catch SIGINT" << endl;
+		cerr << "Can't catch SIGINT" << endl;
 
     // Check if the executable is run with valid number of arguments
     if(argc != 5)
     {
         // display appropriate error message
-        cout << "Less/more arguments provided. Total 4 arguments are expected." << endl;
+        cerr << "Less/more arguments provided. Total 4 arguments are expected." << endl;
         return -1;
     }
     
     // extract information from arguments provided
-    const string file_name = string(argv[1]);
+    file_name = string(argv[1]);
     const char* server_ip = argv[2];
     const int server_port = atoi(argv[3]);
     const bool isDisplayON = (string(argv[4]) == "display") ? 1 : 0;
@@ -46,7 +47,7 @@ int main(int argc , char *argv[])
     if(sock == -1)
     {
         // display appropriate error message
-        cout << "Could not create socket. Run again." << endl;
+        cerr << "Could not create socket. Run again." << endl;
         exit(1);
     }
 
@@ -60,7 +61,7 @@ int main(int argc , char *argv[])
     if(connect(sock, (struct sockaddr *) &server, sizeof(server)) < 0)
     {
         // display appropriate error message
-        cout << "Connection with server failed" << endl;
+        cerr << "Connection with server failed" << endl;
     }
 
     // prepare the file request message
@@ -73,7 +74,7 @@ int main(int argc , char *argv[])
     if(send(sock, send_buffer, strlen(send_buffer), 0) < 0)
     {
         // display appropriate error message
-        cout << "Error sending message to the server" << endl;
+        cerr << "Error sending message to the server" << endl;
     }
     
     // receive the file from the server
